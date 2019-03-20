@@ -1,0 +1,94 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.3/themes/default/style.min.css" />
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+
+<div class="text-center">
+    <h1 class="display-4">Azure Blob Storage Explorer</h1>
+    <span style="font-size:smaller;">Select from the tree below to see the folders contents. You can additional expand the tree to see sub folders.</span>
+    <div class="row">
+        <div id="jsTree" class="col-md-2"></div>
+        <div id="files" class="col-md-9"></div>
+        <div class="col-md-1"></div>
+    </div>
+</div>
+
+@section scripts{
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.3.3/jstree.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $('#jsTree')
+                .on('select_node.jstree', function (e, data) {
+                    GetDirectoryContents(data.node.id);
+                })
+                .jstree({
+                    'plugins': ['themes', 'json_data', 'ui', 'types'],
+                    'types': {
+                        "default": {
+                            "icon": "fa fa-folder"
+                        }
+                    },
+                    'core': {
+                        'data': {
+                            'type': 'POST',
+                            'url': 'Storage/GetNode',
+                            'contentType': "application/json; charset=utf-8",
+                            'dataType': "json",
+                            'data': function (node) {
+                                return '{NodeID:"' + node.id + '"}'
+                            },
+                            "success": function (new_data) {
+                                return new_data;
+                            }
+                        }
+                    }
+                });
+
+            $("#files").on('click', '.directory', function () {
+                var parentNodeID = $(this).data('parent');
+                var selectedNodeID = this.id;
+
+                $.jstree.reference('#jsTree').open_node(parentNodeID
+                    , function (parentNodeID) {
+                        $.jstree.reference('#jsTree').deselect_node(parentNodeID, selectNode(selectedNodeID));
+                    });
+            });
+        });
+
+        function selectNode(SelectedNodeID) {
+            $.jstree.reference('#jsTree').select_node(SelectedNodeID);
+        }
+
+        function GetDirectoryContents(NodeID) {
+            $.ajax({
+                type: "POST",
+                url: "Storage/GetNodeContents",
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                data: '{NodeID:"' + NodeID + '"}',
+                success: function (msg) {
+                    $('#files').empty();
+
+                    var html = '<div class="row">';
+
+                    for (obj in msg) {
+                        debugger;
+                        var newObj = msg[obj];
+                        if (newObj.cssClass == "directory") {
+                            html += '<div class="col-md-3 ' + newObj.cssClass + '" id="' + newObj.id + '" data-parent="' + newObj.parent + '" style="text-align:center;"><div style="font-size:30px;"><i class="fa fa-folder"></i></div><div>' + newObj.text + '</div></div>'
+                        }
+                        else {
+                            html += '<div class="col-md-3 ' + newObj.cssClass + '" style="text-align:center;"><a href="' + newObj.uri + '"><img src="' + newObj.uri + '" width="150px"><div>' + newObj.text + '</div></a></div>'
+                        }
+                    }
+                    html += '</div > ';
+                    $('#files').append(html);
+                }
+            });
+        }
+    </script>
+}
